@@ -108,18 +108,17 @@ class Update extends AdvancedStatement
     }
 
     /**
-     * @throws DatabaseException
-     *
      * @return string
+     * @throws DatabaseException
      */
     public function __toString(): string
     {
         if (!isset($this->table)) {
-            throw new DatabaseException('No table is set for update');
+            throw new DatabaseException('No table set for update statement');
         }
 
         if (empty($this->pairs)) {
-            throw new DatabaseException('Missing columns and values for update');
+            throw new DatabaseException('No column / value pairs set for update statement');
         }
 
         $sql = "UPDATE {$this->table}";
@@ -141,16 +140,15 @@ class Update extends AdvancedStatement
         }
 
         if ($this->limit != null) {
-            $sql .= " LIMIT {$this->limit}";
+            $sql .= " {$this->limit}";
         }
 
         return $sql;
     }
 
     /**
-     * @throws DatabaseException
-     *
      * @return int
+     * @throws DatabaseException
      */
     public function execute()
     {

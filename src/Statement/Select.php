@@ -187,14 +187,13 @@ class Select extends AdvancedStatement
     }
 
     /**
-     * @throws DatabaseException
-     *
      * @return string
+     * @throws DatabaseException
      */
     public function __toString(): string
     {
         if (empty($this->table)) {
-            throw new DatabaseException('No table is set for selection');
+            throw new DatabaseException('No table set for select statement');
         }
 
         $sql = 'SELECT';
@@ -247,7 +246,7 @@ class Select extends AdvancedStatement
         }
 
         if ($this->limit != null) {
-            $sql .= " LIMIT {$this->limit}";
+            $sql .= " {$this->limit}";
         }
 
         if (!empty($this->union)) {

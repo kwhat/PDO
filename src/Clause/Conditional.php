@@ -81,7 +81,7 @@ class Conditional implements QueryInterface
         switch ($this->operator) {
             case 'BETWEEN':
             case 'NOT BETWEEN':
-                if (count($this->getValues()) != 2) {
+                if (count($this->value) != 2) {
                     throw new DatabaseException('Conditional operator "BETWEEN" requires two arguments');
                 }
 
@@ -90,7 +90,7 @@ class Conditional implements QueryInterface
 
             case 'IN':
             case 'NOT IN':
-                if (count($this->getValues()) < 1) {
+                if (count($this->value) < 1) {
                     throw new DatabaseException('Conditional operator "IN" requires at least one argument');
                 }
 

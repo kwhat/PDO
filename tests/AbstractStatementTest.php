@@ -66,7 +66,7 @@ class AbstractStatementTest extends TestCase
     {
         $this->mock
             ->method('execute')
-            ->willThrowException(new PDOException('message', 100));
+            ->willThrowException(new DatabaseException('message', 100));
 
         $this->expectException(DatabaseException::class);
         $this->expectExceptionCode(100);

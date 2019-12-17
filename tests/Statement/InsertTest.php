@@ -77,6 +77,32 @@ class InsertTest extends TestCase
             ->execute();
     }
 
+    public function testToStringWithSelect()
+    {
+        $select = new Statement\Select($this->createMock(PDO::class));
+        $select->from('table');
+
+        $this->subject
+            ->into('test')
+            ->values($select)
+            ->execute();
+
+        $this->assertEquals('INSERT INTO test SELECT * FROM table', $this->subject->__toString());
+    }
+
+    public function testToStringWithSelectAndArgs()
+    {
+        $this->expectException(DatabaseException::class);
+
+        $select = new Statement\Select($this->createMock(PDO::class));
+        $select->from('table');
+
+        $this->subject
+            ->into('test')
+            ->values($select, 2)
+            ->execute();
+    }
+
     public function testToStringWithIgnore()
     {
         $this->subject

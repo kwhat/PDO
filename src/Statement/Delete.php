@@ -67,9 +67,8 @@ class Delete extends AdvancedStatement
     }
 
     /**
-     * @throws DatabaseException
-     *
      * @return string
+     * @throws DatabaseException
      */
     public function __toString(): string
     {
@@ -108,7 +107,7 @@ class Delete extends AdvancedStatement
         }
 
         if ($this->limit != null) {
-            $sql .= " LIMIT {$this->limit}";
+            $sql .= " {$this->limit}";
         }
 
         return $sql;
