@@ -35,11 +35,12 @@ abstract class AbstractStatement implements QueryInterface
         try {
             $success = $stmt->execute($this->getValues());
             if (!$success) {
-                $info = $stmt->errorInfo();
+                list($state, $code, $message) = $stmt->errorInfo();
 
-                throw new DatabaseException($info[2], $info[0]);
+                throw new DatabaseException($message, $state);
             }
         } catch (PDOException $e) {
+            // We are in exception mode, carry on.
             throw new DatabaseException($e->getMessage(), $e->getCode(), $e);
         }
 
