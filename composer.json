@@ -28,18 +28,18 @@
         "ext-pdo": "*"
     },
     "require-dev": {
-        "phan/phan": "^2.2",
-        "phpunit/phpunit": "^8",
+        "phan/phan": "^3",
+        "phpunit/phpunit": "^9",
         "squizlabs/php_codesniffer": "3.*"
     },
     "autoload": {
         "psr-4": {
-            "FaaPz\\PDO\\": "src/"
+            "FaaPz\\PDO\\QueryBuilder\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "FaaPz\\PDO\\Test\\": "tests/"
+            "FaaPz\\PDO\\QueryBuilder\\Tests\\": "tests/"
         }
     },
     "minimum-stability": "stable",

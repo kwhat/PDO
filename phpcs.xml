@@ -58,5 +58,7 @@
         <exclude name="Squiz.WhiteSpace.FunctionSpacing.BeforeFirst"/>
         <exclude name="Squiz.WhiteSpace.MemberVarSpacing.FirstIncorrect"/>
         <exclude name="Squiz.WhiteSpace.ObjectOperatorSpacing.Before"/>
+
+        <exclude name="Squiz.Commenting.FunctionComment.TypeHintMissing"/>
     </rule>
 </ruleset>

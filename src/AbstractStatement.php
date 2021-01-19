@@ -5,7 +5,7 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO;
+namespace FaaPz\PDO\QueryBuilder;
 
 use PDO;
 use PDOException;
