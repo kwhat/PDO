@@ -5,25 +5,36 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\Test\SqlSrv;
+namespace FaaPz\PDO\QueryBuilder\Tests\SqlSrv;
 
-use FaaPz\PDO\SqlSrv\Database;
-use FaaPz\PDO\SqlSrv\Statement\Exec;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Database;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Statement\Exec;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 class DatabaseTest extends TestCase
 {
     /** @var Database $subject */
     private $subject;
 
+    /**
+     * @return void
+     */
     public function setUp(): void
     {
-        $ref = new ReflectionClass(Database::class);
-        $this->subject = $ref->newInstanceWithoutConstructor();
+        parent::setUp();
+
+        $this->subject = $this->getMockForAbstractClass(
+            Database::class,
+            [],
+            '',
+            false
+        );
     }
 
-    public function testCall()
+    /**
+     * @return void
+     */
+    public function testCall(): void
     {
         $this->assertInstanceOf(
             Exec::class,

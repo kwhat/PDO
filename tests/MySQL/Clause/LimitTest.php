@@ -5,38 +5,50 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\MySQL\Test\Clause;
+namespace FaaPz\PDO\QueryBuilder\Tests\MySQL\Clause;
 
-use FaaPz\PDO\MySQL;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Limit;
 use PHPUnit\Framework\TestCase;
 
 class LimitTest extends TestCase
 {
-    public function testToStringWithOffset()
+    /**
+     * @return void
+     */
+    public function testToStringWithOffset(): void
     {
-        $subject = new MySQL\Clause\Limit(10, 25);
+        $subject = new Limit(10, 25);
 
-        $this->assertEquals('LIMIT ?, ?', $subject->__toString());
+        $this->assertEquals('LIMIT ? OFFSET ?', $subject->__toString());
     }
 
-    public function testToStringWithoutOffset()
+    /**
+     * @return void
+     */
+    public function testToStringWithoutOffset(): void
     {
-        $subject = new MySQL\Clause\Limit(10);
+        $subject = new Limit(10);
 
         $this->assertEquals('LIMIT ?', $subject->__toString());
     }
 
-    public function testGetValuesWithOffset()
+    /**
+     * @return void
+     */
+    public function testGetValuesWithOffset(): void
     {
-        $subject = new MySQL\Clause\Limit(10, 25);
+        $subject = new Limit(10, 25);
 
         $this->assertIsArray($subject->getValues());
         $this->assertCount(2, $subject->getValues());
     }
 
-    public function testGetValuesWithoutOffset()
+    /**
+     * @return void
+     */
+    public function testGetValuesWithoutOffset(): void
     {
-        $subject = new MySQL\Clause\Limit(10);
+        $subject = new Limit(10);
 
         $this->assertIsArray($subject->getValues());
         $this->assertCount(1, $subject->getValues());

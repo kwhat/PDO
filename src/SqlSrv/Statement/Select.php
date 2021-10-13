@@ -7,29 +7,272 @@
 
 namespace FaaPz\PDO\QueryBuilder\SqlSrv\Statement;
 
-use FaaPz\PDO\QueryBuilder\MySQL;
-use FaaPz\PDO\QueryBuilder\SqlSrv;
+use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Conditional;
+use FaaPz\PDO\QueryBuilder\SqlSrv\AbstractStatement;
+use PDO;
 
-/**
- * @property string|array<string, string|Exec|Select>|null $table
- * @property array<int, Exec|Select> $union
- * @property array<int, Exec|Select> $unionAll
- */
-class Select extends MySQL\Statement\Select
+class Select extends AbstractStatement
 {
-    /** @var SqlSrv\Clause\Top|null $top */
-    protected $top = null;
+    /** @var string|array<string, Select>|null $table */
+    protected $table = null;
+
+    /** @var array<int|string, string> $columns */
+    protected $columns = [];
+
+    /** @var bool $distinct */
+    protected bool $distinct = false;
+
+    /** @var array<int, Select> $union */
+    protected array $union = [];
+
+    /** @var array<int, self> $unionAll */
+    protected array $unionAll = [];
+
+    /** @var array<int, string> $groupBy */
+    protected array $groupBy = [];
+
+    /** @var ?Conditional $having */
+    protected ?Conditional $having = null;
 
     /**
-     * @param SqlSrv\Clause\Top|null $limit
-     *
-     * @return self
+     * @param PDO      $dbh
+     * @param string[] $columns
      */
-    public function top(?SqlSrv\Clause\Top $limit): self
+    public function __construct(PDO $dbh, array $columns = ['*'])
     {
-        $this->top = $limit;
+        parent::__construct($dbh);
+
+        $this->columns($columns);
+    }
+
+    /**
+     * @return $this
+     */
+    public function distinct(): self
+    {
+        $this->distinct = true;
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderDistinct(): string
+    {
+        $sql = '';
+        if ($this->distinct) {
+            $sql = ' DISTINCT';
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param array<int|string, string> $columns
+     *
+     * @return $this
+     */
+    public function columns(array $columns = ['*']): self
+    {
+        if (empty($columns)) {
+            $this->columns = ['*'];
+        } else {
+            $this->columns = $columns;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderColumns(): string
+    {
+        $columns = '';
+        foreach ($this->columns as $key => $value) {
+            if (!empty($columns)) {
+                $columns .= ', ';
+            }
+
+            if ($value instanceof QueryInterface) {
+                $column = "({$value})";
+            } else {
+                $column = $value;
+            }
+
+            if (is_string($key)) {
+                $column .= " AS {$key}";
+            }
+
+            $columns .= $column;
+        }
+
+        return " {$columns}";
+    }
+
+    /**
+     * @param string|array<string, string|Select> $table
+     *
+     * @return $this
+     */
+    public function from($table): self
+    {
+        $this->table = $table;
+
+        return $this;
+    }
+
+    protected function renderFrom(): string
+    {
+        if (empty($this->table)) {
+            trigger_error('No table set for select statement', E_USER_ERROR);
+        }
+
+        if (is_array($this->table)) {
+            $table = reset($this->table);
+            if ($table instanceof QueryInterface) {
+                $table = "({$table})";
+            }
+
+            $alias = key($this->table);
+            if (is_string($alias)) {
+                $table .= " AS {$alias}";
+            }
+        } else {
+            $table = "{$this->table}";
+        }
+
+        return " FROM {$table}";
+    }
+
+    /**
+     * @param self $query
+     *
+     * @return $this
+     */
+    public function union(self $query): self
+    {
+        $this->union[$this->getUnionCount()] = $query;
+
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    protected function getUnionCount(): int
+    {
+        return count($this->union) + count($this->unionAll);
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderUnion(): string
+    {
+        $sql = '';
+        for ($i = 0; $i < $this->getUnionCount(); $i++) {
+            if (isset($this->union[$i])) {
+                $union = "({$this->union[$i]})";
+            } elseif (isset($this->unionAll[$i])) {
+                $union = "ALL ({$this->unionAll[$i]})";
+            } else {
+                trigger_error('Union offset mismatch', E_USER_ERROR);
+            }
+
+            $sql .= " UNION {$union}";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param self $query
+     *
+     * @return $this
+     */
+    public function unionAll(self $query): self
+    {
+        $this->unionAll[$this->getUnionCount()] = $query;
+
+        return $this;
+    }
+
+    /**
+     * @param string ...$columns
+     *
+     * @return $this
+     */
+    public function groupBy(string ...$columns): self
+    {
+        $this->groupBy = array_merge($this->groupBy, $columns);
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderGroupBy(): string
+    {
+        $sql = '';
+        if (!empty($this->groupBy)) {
+            $sql = ' GROUP BY ' . implode(', ', $this->groupBy);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param Conditional $clause
+     *
+     * @return $this
+     */
+    public function having(Conditional $clause): self
+    {
+        $this->having = $clause;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderHaving(): string
+    {
+        $sql = '';
+        if ($this->having != null) {
+            $sql = " HAVING {$this->having}";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    public function getValues(): array
+    {
+        $values = [];
+        if ($this->top != null) {
+            $values = array_merge($values, $this->top->getValues());
+        }
+
+        foreach ($this->join as $join) {
+            $values = array_merge($values, $join->getValues());
+        }
+
+        if ($this->where != null) {
+            $values = array_merge($values, $this->where->getValues());
+        }
+
+        if ($this->having != null) {
+            $values = array_merge($values, $this->having->getValues());
+        }
+
+        return $values;
     }
 
     /**
@@ -38,20 +281,19 @@ class Select extends MySQL\Statement\Select
     public function __toString(): string
     {
         $sql = 'SELECT'
-            . $this->renderDistinct();
-
-        if ($this->top != null) {
-            $sql .= " {$this->top}";
-        }
-
-        $sql .= $this->renderColumns()
+            . $this->renderDistinct()
+            . $this->renderTop()
+            . $this->renderColumns()
             . $this->renderFrom()
             . $this->renderJoin()
             . $this->renderWhere()
             . $this->renderGroupBy()
             . $this->renderHaving()
-            . $this->renderOrderBy()
-            . $this->renderUnion();
+            . $this->renderOrderBy();
+
+        if ($this->getUnionCount() > 0) {
+            $sql = "({$sql})" . $this->renderUnion();
+        }
 
         return $sql;
     }

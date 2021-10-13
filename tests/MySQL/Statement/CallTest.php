@@ -5,33 +5,42 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\MySQL\Test\Statement;
+namespace FaaPz\PDO\QueryBuilder\Tests\MySQL\Statement;
 
-use FaaPz\PDO\Clause\Method;
-use FaaPz\PDO\MySQL\Statement\Call;
-use PDO;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Method;
+use FaaPz\PDO\QueryBuilder\MySQL\Statement\Call;
 use PHPUnit\Framework\TestCase;
 
 class CallTest extends TestCase
 {
     /** @var Call $subject */
-    private $subject;
+    private Call $subject;
 
+    /**
+     * @return void
+     */
     public function setUp(): void
     {
         parent::setUp();
 
-        $this->subject = new Call($this->createMock(PDO::class));
+        $this->subject = new Call($this->createMock(Database::class));
     }
 
-    public function testToString()
+    /**
+     * @return void
+     */
+    public function testToString(): void
     {
         $this->subject->method(new Method('MyFunc'));
 
         $this->assertStringStartsWith('CALL', $this->subject->__toString());
     }
 
-    public function testToStringWithoutMethod()
+    /**
+     * @return void
+     */
+    public function testToStringWithoutMethod(): void
     {
         $this->expectError();
         $this->expectErrorMessageMatches('/^No method set for call statement/');
@@ -39,7 +48,10 @@ class CallTest extends TestCase
         $this->subject->__toString();
     }
 
-    public function testGetValues()
+    /**
+     * @return void
+     */
+    public function testGetValues(): void
     {
         $this->subject->method(new Method('MyFunc', 1, 2));
 

@@ -5,17 +5,17 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\Test\SqlSrv\Statement;
+namespace FaaPz\PDO\QueryBuilder\Tests\SqlSrv\Statement;
 
-use FaaPz\PDO\Clause\Method;
-use FaaPz\PDO\SqlSrv\Statement\Exec;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Method;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Statement\Exec;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
 class ExecTest extends TestCase
 {
     /** @var Exec $subject */
-    private $subject;
+    private Exec $subject;
 
     public function setUp(): void
     {

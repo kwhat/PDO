@@ -7,9 +7,9 @@
 
 namespace FaaPz\PDO\QueryBuilder\SqlSrv\Clause;
 
-use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder;
 
-class Offset implements QueryInterface
+class Offset implements QueryBuilder\QueryInterface
 {
     /** @var int $offset */
     protected $offset;

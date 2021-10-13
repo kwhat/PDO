@@ -7,28 +7,102 @@
 
 namespace FaaPz\PDO\QueryBuilder\SqlSrv\Statement;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-use FaaPz\PDO\QueryBuilder\SqlSrv;
+use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Database;
+use FaaPz\PDO\QueryBuilder\SqlSrv\AbstractStatement;
 
-/**
- * @property array<int, Exec|Select> $union
- * @property array<int, Exec|Select> $unionAll
- */
-class Update extends Ansi\Statement\Update
+class Update extends AbstractStatement
 {
-    /** @var SqlSrv\Clause\Top|null $limit */
-    protected $limit = null;
+    /** @var string $table */
+    protected string $table;
+
+    /** @var array<string, mixed> $pairs */
+    protected array $pairs = [];
+
 
     /**
-     * @param SqlSrv\Clause\Top|null $limit
-     *
-     * @return Update
+     * @param Database             $dbh
+     * @param array<string, mixed> $pairs
      */
-    public function limit(?SqlSrv\Clause\Top $limit): self
+    public function __construct(Database $dbh, array $pairs = [])
     {
-        $this->limit = $limit;
+        parent::__construct($dbh);
+
+        $this->pairs($pairs);
+    }
+
+    /**
+     * @param string $table
+     *
+     * @return self
+     */
+    public function table(string $table): self
+    {
+        $this->table = $table;
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderTable(): string
+    {
+        if (empty($this->table)) {
+            trigger_error('No table set for update statement', E_USER_ERROR);
+        }
+
+        return " {$this->table}";
+    }
+
+    /**
+     * @param string $column
+     * @param mixed  $value
+     *
+     * @return $this
+     */
+    public function set(string $column, $value): self
+    {
+        $this->pairs[$column] = $value;
+
+        return $this;
+    }
+
+    /**
+     * @param array<string, mixed> $pairs
+     *
+     * @return $this
+     */
+    public function pairs(array $pairs): self
+    {
+        $this->pairs = array_merge($this->pairs, $pairs);
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderPairs(): string
+    {
+        if (empty($this->pairs)) {
+            trigger_error('No column / value pairs set for update statement', E_USER_ERROR);
+        }
+
+        $sql = '';
+        foreach ($this->pairs as $key => $value) {
+            if (!empty($sql)) {
+                $sql .= ', ';
+            }
+
+            if ($value instanceof QueryInterface) {
+                $sql .= "{$key} = ({$value})";
+            } else {
+                $sql .= "{$key} = ?";
+            }
+        }
+
+        return " SET {$sql}";
     }
 
     /**
@@ -36,9 +110,25 @@ class Update extends Ansi\Statement\Update
      */
     public function getValues(): array
     {
-        $values = parent::getValues();
-        if ($this->limit != null) {
-            $values = array_merge($values, $this->limit->getValues());
+        $values = [];
+        if ($this->top != null) {
+            $values = array_merge($values, $this->top->getValues());
+        }
+
+        foreach ($this->join as $join) {
+            $values = array_merge($values, $join->getValues());
+        }
+
+        foreach ($this->pairs as $value) {
+            if ($value instanceof QueryInterface) {
+                $values = array_merge($values, $value->getValues());
+            } else {
+                $values[] = $value;
+            }
+        }
+
+        if ($this->where != null) {
+            $values = array_merge($values, $this->where->getValues());
         }
 
         return $values;
@@ -49,39 +139,12 @@ class Update extends Ansi\Statement\Update
      */
     public function __toString(): string
     {
-        if (!isset($this->table)) {
-            trigger_error('No table is set for update statement', E_USER_ERROR);
-        }
-
-        if (empty($this->pairs)) {
-            trigger_error('Missing columns and values for update statement', E_USER_ERROR);
-        }
-
-        $sql = 'UPDATE';
-        if ($this->limit instanceof SqlSrv\Clause\Top) {
-            $sql .= " {$this->limit}";
-        }
-        $sql .= " {$this->table}";
-
-        if (!empty($this->join)) {
-            $sql .= ' ' . implode(' ', $this->join);
-        }
-
-        $sql .= $this->renderSet();
-        if ($this->where != null) {
-            $sql .= " WHERE {$this->where}";
-        }
-
-        if ($direction = reset($this->orderBy)) {
-            $column = key($this->orderBy);
-            $sql .= " ORDER BY {$column} {$direction}";
-
-            while ($direction = next($this->orderBy)) {
-                $column = key($this->orderBy);
-                $sql .= ", {$column} {$direction}";
-            }
-        }
-
-        return $sql;
+        return 'UPDATE'
+            . $this->renderTop()
+            . $this->renderTable()
+            . $this->renderJoin()
+            . $this->renderPairs()
+            . $this->renderWhere()
+            . $this->renderOrderBy();
     }
 }

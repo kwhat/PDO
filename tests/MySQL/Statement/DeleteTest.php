@@ -5,22 +5,27 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\MySQL\Test\Statement;
+namespace FaaPz\PDO\QueryBuilder\Tests\MySQL\Statement;
 
-use FaaPz\PDO\MySQL\Clause\Limit;
-use FaaPz\PDO\MySQL\Statement\Delete;
-use PDO;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Conditional;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Join;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Limit;
+use FaaPz\PDO\QueryBuilder\MySQL\Statement\Delete;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
 
 class DeleteTest extends TestCase
 {
-    /** @var PDO */
-    private $pdo;
+    /** @var Database */
+    private Database $database;
 
     /** @var Delete $subject */
-    private $subject;
+    private Delete $subject;
 
+    /**
+     * @return void
+     */
     public function setUp(): void
     {
         parent::setUp();
@@ -32,15 +37,154 @@ class DeleteTest extends TestCase
         $stmt->method('rowCount')
             ->willReturn(1);
 
-        $this->pdo = $this->createMock(PDO::class);
-        $this->pdo->method('prepare')
+        $this->database = $this->createMock(Database::class);
+        $this->database->method('prepare')
             ->with($this->anything())
             ->willReturn($stmt);
 
-        $this->subject = new Delete($this->pdo);
+        $this->subject = new Delete($this->database);
     }
 
-    public function testToStringWithLimit()
+    /**
+     * @return void
+     */
+    public function testToString(): void
+    {
+        $this->subject->from('test');
+
+        $this->assertStringStartsWith('DELETE FROM test', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithAlias(): void
+    {
+        $this->subject
+            ->from(['alias' => 'test']);
+
+        $this->assertStringEndsWith('test AS alias', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithConstructorTable(): void
+    {
+        $this->subject = new Delete($this->database, ['alias' => 'test']);
+
+        $this->assertStringEndsWith('test AS alias', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithoutTable(): void
+    {
+        $this->expectError();
+        $this->expectErrorMessageMatches('/^No table set for delete statement/');
+
+        $this->subject->__toString();
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithJoin(): void
+    {
+        $this->subject
+            ->from('test1')
+            ->join(new Join(
+                'test2',
+                new Conditional('test1.id', '=', 'test2.id')
+            ));
+
+        $this->assertStringEndsWith('test1 JOIN test2 ON test1.id = ?', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithWhere(): void
+    {
+        $this->subject
+            ->from('test')
+            ->where(new Conditional('id', '=', 1));
+
+        $this->assertStringEndsWith('WHERE id = ?', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithOrderBy(): void
+    {
+        $this->subject
+            ->from('test')
+            ->orderBy('id', 'ASC')
+            ->orderBy('name', 'DESC');
+
+        // FIXME This seems broken...
+        $this->assertStringEndsWith('test ORDER BY id ASC, name DESC', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetValues(): void
+    {
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertEmpty($this->subject->getValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetValuesWithWhere(): void
+    {
+        $this->subject
+            ->from('test')
+            ->where(new Conditional('id', '=', 1));
+
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(1, $this->subject->getValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetValuesWithJoin(): void
+    {
+        $this->subject
+            ->from('test1')
+            ->join(new Join(
+                'test2',
+                new Conditional('test1.id', '=', 'test2.id')
+            ));
+
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(1, $this->subject->getValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetValuesWithOrderBy(): void
+    {
+        $this->subject
+            ->from('test1')
+            ->orderBy('id', 'ASC')
+            ->orderBy('name', 'DESC');
+
+        // FIXME This seems broken...
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(2, $this->subject->getValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithLimit(): void
     {
         $this->subject
             ->from('test')
@@ -49,10 +193,13 @@ class DeleteTest extends TestCase
                 100
             ));
 
-        $this->assertStringEndsWith('test LIMIT ?, ?', $this->subject->__toString());
+        $this->assertStringEndsWith('test LIMIT ? OFFSET ?', $this->subject->__toString());
     }
 
-    public function testGetValuesWithLimit()
+    /**
+     * @return void
+     */
+    public function testGetValuesWithLimit(): void
     {
         $this->subject
             ->from('test')

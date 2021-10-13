@@ -7,9 +7,58 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Clause;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-
-class Grouping extends Ansi\Clause\Grouping
+class Grouping implements ConditionalInterface
 {
+    /** @var string $operator */
+    protected string $operator;
 
+    /** @var array<ConditionalInterface> $value */
+    protected array $value;
+
+    /**
+     * @param string               $operator
+     * @param ConditionalInterface $clause
+     * @param ConditionalInterface ...$clauses
+     */
+    public function __construct(string $operator, ConditionalInterface $clause, ConditionalInterface ...$clauses)
+    {
+        array_unshift($clauses, $clause);
+
+        $this->operator = strtoupper(trim($operator));
+        $this->value = $clauses;
+    }
+
+    /**
+     * @return array
+     */
+    public function getValues(): array
+    {
+        $values = [];
+        foreach ($this->value as $clause) {
+            $values = array_merge($values, $clause->getValues());
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        $sql = '';
+        foreach ($this->value as $clause) {
+            if (!empty($sql)) {
+                $sql .= " {$this->operator} ";
+            }
+
+            if ($clause instanceof self) {
+                $sql .= "({$clause})";
+            } else {
+                $sql .= "{$clause}";
+            }
+        }
+
+        return $sql;
+    }
 }

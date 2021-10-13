@@ -7,40 +7,41 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
-use FaaPz\PDO\QueryBuilder;
-use FaaPz\PDO\QueryBuilder\MySQL;
-use PDO;
+use FaaPz\PDO\QueryBuilder\AbstractStatement;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\Method;
 
-class Call extends QueryBuilder\AbstractStatement
+class Call extends AbstractStatement
 {
-    /** @var MySQL\Clause\Method|null $method */
-    protected $method = null;
+    /** @var ?Method $method */
+    protected ?Method $method = null;
 
     /**
-     * @param PDO                      $dbh
-     * @param MySQL\Clause\Method|null $procedure
+     * @param Database $dbh
+     * @param ?Method  $procedure
      */
-    public function __construct(PDO $dbh, ?MySQL\Clause\Method $procedure = null)
+    public function __construct(Database $dbh, ?Method $procedure = null)
     {
         parent::__construct($dbh);
 
-        if ($procedure != null) {
-            $this->method($procedure);
-        }
+        $this->method($procedure);
     }
 
     /**
-     * @param MySQL\Clause\Method $procedure
+     * @param ?Method $procedure
      *
-     * @return $this
+     * @return self
      */
-    public function method(MySQL\Clause\Method $procedure): self
+    public function method(?Method $procedure): self
     {
         $this->method = $procedure;
 
         return $this;
     }
 
+    /**
+     * @return string
+     */
     protected function renderMethod(): string
     {
         if ($this->method == null) {
@@ -51,7 +52,7 @@ class Call extends QueryBuilder\AbstractStatement
     }
 
     /**
-     * @return mixed[]
+     * @return array<mixed>
      */
     public function getValues(): array
     {

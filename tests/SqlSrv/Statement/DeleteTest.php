@@ -5,21 +5,21 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\Test\SqlSrv\Statement;
+namespace FaaPz\PDO\QueryBuilder\Tests\SqlSrv\Statement;
 
-use FaaPz\PDO\SqlSrv\Clause\Top;
-use FaaPz\PDO\SqlSrv\Statement\Delete;
-use PDO;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Database;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Top;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Statement\Delete;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
 
 class DeleteTest extends TestCase
 {
-    /** @var PDO */
-    private $pdo;
+    /** @var Database $database */
+    private Database $database;
 
     /** @var Delete $subject */
-    private $subject;
+    private Delete $subject;
 
     public function setUp(): void
     {
@@ -32,32 +32,32 @@ class DeleteTest extends TestCase
         $stmt->method('rowCount')
             ->willReturn(1);
 
-        $this->pdo = $this->createMock(PDO::class);
-        $this->pdo->method('prepare')
+        $this->database = $this->createMock(Database::class);
+        $this->database->method('prepare')
             ->with($this->anything())
             ->willReturn($stmt);
 
-        $this->subject = new Delete($this->pdo);
+        $this->subject = new Delete($this->database);
     }
 
     public function testToStringWithLimit()
     {
         $this->subject
-            ->from('test')
-            ->limit(new Top(
+            ->top(new Top(
                 25
-            ));
+            ))
+            ->from('test');
 
-        $this->assertStringEndsWith('test TOP ?', $this->subject->__toString());
+        $this->assertStringStartsWith('DELETE TOP ?', $this->subject->__toString());
     }
 
     public function testGetValuesWithLimit()
     {
         $this->subject
-            ->from('test')
-            ->limit(new Top(
+            ->top(new Top(
                 25
-            ));
+            ))
+            ->from('test');
 
         $this->assertIsArray($this->subject->getValues());
         $this->assertCount(1, $this->subject->getValues());

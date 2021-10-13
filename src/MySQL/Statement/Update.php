@@ -7,34 +7,102 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-use FaaPz\PDO\QueryBuilder\MySQL;
+use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
+use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
 
-class Update extends Ansi\Statement\Update
+class Update extends AbstractStatement
 {
-    /** @var MySQL\Clause\Limit|null $limit */
-    protected $limit = null;
+    /** @var string $table */
+    protected string $table;
+
+    /** @var array<string, mixed> $pairs */
+    protected array $pairs = [];
+
 
     /**
-     * @param MySQL\Clause\Limit|null $limit
-     *
-     * @return $this
+     * @param Database             $dbh
+     * @param array<string, mixed> $pairs
      */
-    public function limit(?MySQL\Clause\Limit $limit): self
+    public function __construct(Database $dbh, array $pairs = [])
     {
-        $this->limit = $limit;
+        parent::__construct($dbh);
+
+        $this->pairs($pairs);
+    }
+
+    /**
+     * @param string $table
+     *
+     * @return self
+     */
+    public function table(string $table): self
+    {
+        $this->table = $table;
 
         return $this;
     }
 
-    protected function renderLimit(): string
+    /**
+     * @return string
+     */
+    protected function renderTable(): string
     {
-        $sql = '';
-        if ($this->limit != null) {
-            $sql = " LIMIT {$this->limit}";
+        if (empty($this->table)) {
+            trigger_error('No table set for update statement', E_USER_ERROR);
         }
 
-        return $sql;
+        return " {$this->table}";
+    }
+
+    /**
+     * @param string $column
+     * @param mixed  $value
+     *
+     * @return $this
+     */
+    public function set(string $column, $value): self
+    {
+        $this->pairs[$column] = $value;
+
+        return $this;
+    }
+
+    /**
+     * @param array<string, mixed> $pairs
+     *
+     * @return $this
+     */
+    public function pairs(array $pairs): self
+    {
+        $this->pairs = array_merge($this->pairs, $pairs);
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderPairs(): string
+    {
+        if (empty($this->pairs)) {
+            trigger_error('No column / value pairs set for update statement', E_USER_ERROR);
+        }
+
+        $sql = '';
+        foreach ($this->pairs as $key => $value) {
+            if (!empty($sql)) {
+                $sql .= ', ';
+            }
+
+            if ($value instanceof QueryInterface) {
+                $sql .= "{$key} = ({$value})";
+            } else {
+                $sql .= "{$key} = ?";
+            }
+        }
+
+        return " SET {$sql}";
     }
 
     /**
@@ -42,7 +110,23 @@ class Update extends Ansi\Statement\Update
      */
     public function getValues(): array
     {
-        $values = parent::getValues();
+        $values = [];
+        foreach ($this->join as $join) {
+            $values = array_merge($values, $join->getValues());
+        }
+
+        foreach ($this->pairs as $value) {
+            if ($value instanceof QueryInterface) {
+                $values = array_merge($values, $value->getValues());
+            } else {
+                $values[] = $value;
+            }
+        }
+
+        if ($this->where != null) {
+            $values = array_merge($values, $this->where->getValues());
+        }
+
         if ($this->limit != null) {
             $values = array_merge($values, $this->limit->getValues());
         }
@@ -55,7 +139,12 @@ class Update extends Ansi\Statement\Update
      */
     public function __toString(): string
     {
-        return parent::__toString()
+        return 'UPDATE'
+            . $this->renderTable()
+            . $this->renderJoin()
+            . $this->renderPairs()
+            . $this->renderWhere()
+            . $this->renderOrderBy()
             . $this->renderLimit();
     }
 }

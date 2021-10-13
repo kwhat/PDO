@@ -7,9 +7,32 @@
 
 namespace FaaPz\PDO\QueryBuilder\PostgreSQL\Clause;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-
-class Raw extends Ansi\Clause\Raw
+class Raw implements RawInterface
 {
+    /** @var string $sql */
+    protected string $sql;
 
+    /**
+     * @param string $sql
+     */
+    public function __construct(string $sql)
+    {
+        $this->sql = $sql;
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    public function getValues(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->sql;
+    }
 }

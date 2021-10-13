@@ -7,15 +7,13 @@
 
 namespace FaaPz\PDO\QueryBuilder\SqlSrv\Clause;
 
-use FaaPz\PDO\QueryBuilder\QueryInterface;
-
-class Top implements QueryInterface
+class Top implements TopInterface
 {
     /** @var int $size */
-    protected $size;
+    protected int $size;
 
     /** @var bool $percent */
-    protected $percent;
+    protected bool $percent;
 
     /**
      * @param int  $size

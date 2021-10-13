@@ -5,31 +5,31 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\Test\SqlSrv\Statement;
+namespace FaaPz\PDO\QueryBuilder\Tests\SqlSrv\Statement;
 
-use FaaPz\PDO\Clause\Conditional;
-use FaaPz\PDO\Clause\Join;
-use FaapZ\PDO\MySQL;
-use FaaPz\PDO\SqlSrv\Statement\Select;
-use PDO;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Database;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Conditional;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Top;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Clause\Join;
+use FaaPz\PDO\QueryBuilder\SqlSrv\Statement\Select;
 use PHPUnit\Framework\TestCase;
 
 class SelectTest extends TestCase
 {
     /** @var Select $subject */
-    private $subject;
+    private Select $subject;
 
     public function setUp(): void
     {
         parent::setUp();
 
-        $this->subject = new Select($this->createMock(PDO::class));
+        $this->subject = new Select($this->createMock(Database::class));
     }
 
     public function testToStringWithColumnSubQuery()
     {
         $this->subject
-            ->columns(['sub' => (new Select($this->createMock(PDO::class)))->from('test2')])
+            ->columns(['sub' => (new Select($this->createMock(Database::class)))->from('test2')])
             ->from('test1');
 
         $this->assertStringEndsWith('(SELECT * FROM test2) AS sub FROM test1', $this->subject->__toString());
@@ -46,7 +46,7 @@ class SelectTest extends TestCase
     public function testToStringWithTableSubQuery()
     {
         $this->subject
-            ->from(['sub' => (new Select($this->createMock(PDO::class)))->from('test')]);
+            ->from(['sub' => (new Select($this->createMock(Database::class)))->from('test')]);
 
         $this->assertEquals('SELECT * FROM (SELECT * FROM test) AS sub', $this->subject->__toString());
     }
@@ -136,15 +136,6 @@ class SelectTest extends TestCase
         $this->assertStringEndsWith('test ORDER BY id ASC, name DESC', $this->subject->__toString());
     }
 
-    public function testToStringWithLimit()
-    {
-        $this->subject
-            ->from('test')
-            ->limit(new Limit(5, 25));
-
-        $this->assertStringEndsWith('test LIMIT ?, ?', $this->subject->__toString());
-    }
-
     public function testToStringWithoutTable()
     {
         $this->expectError();
@@ -188,7 +179,7 @@ class SelectTest extends TestCase
             ->columns(['id', 'name'])
             ->from('test1')
             ->union(
-                (new Select($this->createMock(PDO::class)))
+                (new Select($this->createMock(Database::class)))
                     ->columns(['id', 'name'])
                     ->from('test2')
             );
@@ -217,13 +208,16 @@ class SelectTest extends TestCase
         $this->assertEmpty($this->subject->getValues());
     }
 
-    public function testGetValuesWithLimit()
+    /**
+     * @return void
+     */
+    public function testToStringWithLimit(): void
     {
         $this->subject
+            ->top(new Top(5))
             ->from('test')
-            ->limit(new MySQL\Clause\Limit(25, 100));
+            ->orderBy('id', 'ASC');
 
-        $this->assertIsArray($this->subject->getValues());
-        $this->assertCount(2, $this->subject->getValues());
+        $this->assertEquals('SELECT TOP ? * FROM test ORDER BY id ASC', $this->subject->__toString());
     }
 }

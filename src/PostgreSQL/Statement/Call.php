@@ -7,20 +7,64 @@
 
 namespace FaaPz\PDO\QueryBuilder\PostgreSQL\Statement;
 
-use FaaPz\PDO\QueryBuilder\MySQL;
-use FaaPz\PDO\QueryBuilder\PostgreSQL;
-use PDO;
+use FaaPz\PDO\QueryBuilder\AbstractStatement;
+use FaaPz\PDO\QueryBuilder\PostgreSQL\Database;
+use FaaPz\PDO\QueryBuilder\PostgreSQL\Clause\Method;
 
-/**
- * @phan-file-suppress PhanParamSignatureMismatch
- * @phan-file-suppress PhanParamSignaturePHPDocMismatchParamType, PhanParamSignaturePHPDocMismatchReturnType
- *
- * @property PostgreSQL\Clause\Method|null $method
- *
- * @method __construct(PDO $dbh, ?PostgreSQL\Clause\Method $procedure = null)
- * @method self method(PostgreSQL\Clause\Method $procedure)
- */
-class Call extends MySQL\Statement\Call
+class Call extends AbstractStatement
 {
+    /** @var ?Method $method */
+    protected ?Method $method = null;
 
+    /**
+     * @param Database $dbh
+     * @param ?Method  $procedure
+     */
+    public function __construct(Database $dbh, ?Method $procedure = null)
+    {
+        parent::__construct($dbh);
+
+        $this->method($procedure);
+    }
+
+    /**
+     * @param ?Method $procedure
+     *
+     * @return self
+     */
+    public function method(?Method $procedure): self
+    {
+        $this->method = $procedure;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderMethod(): string
+    {
+        if ($this->method == null) {
+            trigger_error('No method set for call statement', E_USER_ERROR);
+        }
+
+        return " {$this->method}";
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    public function getValues(): array
+    {
+        return $this->method->getValues();
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return 'CALL'
+            . $this->renderMethod();
+    }
 }

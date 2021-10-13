@@ -5,9 +5,9 @@
  * @license http://opensource.org/licenses/MIT
  */
 
-namespace FaaPz\PDO\Test;
+namespace FaaPz\PDO\QueryBuilder\Tests;
 
-use FaaPz\PDO\AbstractStatement;
+use FaaPz\PDO\QueryBuilder\AbstractStatement;
 use PDO;
 use PDOException;
 use PDOStatement;

@@ -7,35 +7,149 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-use FaaPz\PDO\QueryBuilder\MySQL;
+use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\ConditionalInterface;
 
-/**
- * @phan-file-suppress PhanParamSignatureMismatch
- * @phan-file-suppress PhanParamSignaturePHPDocMismatchParamType, PhanParamSignaturePHPDocMismatchReturnType
- *
- * @property MySQL\Clause\Join[] $join
- * @property MySQL\Clause\Conditional|null $where
- * @property MySQL\Clause\Conditional|null $having
- *
- * @method self join(MySQL\Clause\Join $clause)
- * @method self where(MySQL\Clause\Conditional $clause)
- * @method self having(MySQL\Clause\Conditional $clause)
- */
-class Select extends Ansi\Statement\Select
+class Select extends AbstractStatement
 {
-    /** @var array<int, MySQL\Statement\Call|self> $union */
-    protected $union = [];
+    /** @var ?string|?array<string, string|self> $table */
+    protected $table = null;
 
-    /** @var array<int, MySQL\Statement\Call|self> $unionAll */
-    protected $unionAll = [];
+    /** @var bool $distinct */
+    protected bool $distinct = false;
 
-    /** @var MySQL\Clause\Limit|null $limit */
-    protected $limit = null;
+    /** @var array<int|string, string|self> $columns */
+    protected $columns = [];
 
-    protected function getUnionCount(): int
+    /** @var array<int, self> $union */
+    protected array $union = [];
+
+    /** @var array<int, self> $unionAll */
+    protected array $unionAll = [];
+
+    /** @var array<int, string> $groupBy */
+    protected array $groupBy = [];
+
+    /** @var ?ConditionalInterface $having */
+    protected ?ConditionalInterface $having = null;
+
+
+    /**
+     * @param Database $dbh
+     * @param string[] $columns
+     */
+    public function __construct(Database $dbh, array $columns = ['*'])
     {
-        return count($this->union) + count($this->unionAll);
+        parent::__construct($dbh);
+
+        $this->columns($columns);
+    }
+
+    /**
+     * @return $this
+     */
+    public function distinct(): self
+    {
+        $this->distinct = true;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderDistinct(): string
+    {
+        $sql = '';
+        if ($this->distinct) {
+            $sql = ' DISTINCT';
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param array<int|string, string|self> $columns
+     *
+     * @return $this
+     */
+    public function columns(array $columns = ['*']): self
+    {
+        if (empty($columns)) {
+            $this->columns = ['*'];
+        } else {
+            $this->columns = $columns;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderColumns(): string
+    {
+        // FIXME Rewrite as a while loop, raise error if columns is empty.
+        $columns = '';
+        foreach ($this->columns as $key => $value) {
+            if (!empty($columns)) {
+                $columns .= ', ';
+            }
+
+            if ($value instanceof QueryInterface) {
+                $column = "({$value})";
+            } else {
+                $column = $value;
+            }
+
+            if (is_string($key)) {
+                $column .= " AS {$key}";
+            }
+
+            $columns .= $column;
+        }
+
+        return " {$columns}";
+    }
+
+    /**
+     * @param string|array<string, string|self> $table
+     *
+     * @return $this
+     */
+    public function from($table): self
+    {
+        $this->table = $table;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderFrom(): string
+    {
+        if (empty($this->table)) {
+            trigger_error('No table set for select statement', E_USER_ERROR);
+        }
+
+        if (is_array($this->table)) {
+            $table = reset($this->table);
+            if ($table instanceof QueryInterface) {
+                $table = "({$table})";
+            }
+
+            $alias = key($this->table);
+            if (is_string($alias)) {
+                $table .= " AS {$alias}";
+            }
+        } else {
+            $table = "{$this->table}";
+        }
+
+        return " FROM {$table}";
     }
 
     /**
@@ -48,24 +162,6 @@ class Select extends Ansi\Statement\Select
         $this->union[$this->getUnionCount()] = $query;
 
         return $this;
-    }
-
-    protected function renderUnion(): string
-    {
-        $sql = '';
-        for ($i = 0; $i < $this->getUnionCount(); $i++) {
-            if (isset($this->union[$i])) {
-                $union = "{$this->union[$i]}";
-            } elseif (isset($this->unionAll[$i])) {
-                $union = "ALL {$this->unionAll[$i]}";
-            } else {
-                trigger_error('Union offset mismatch', E_USER_ERROR);
-            }
-
-            $sql .= " UNION {$union}";
-        }
-
-        return $sql;
     }
 
     /**
@@ -81,13 +177,43 @@ class Select extends Ansi\Statement\Select
     }
 
     /**
-     * @param MySQL\Clause\Limit|null $limit
+     * @return int
+     */
+    protected function getUnionCount(): int
+    {
+        return count($this->union) + count($this->unionAll);
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderUnion(): string
+    {
+        $sql = '';
+        for ($i = 0; $i < $this->getUnionCount(); $i++) {
+            if (isset($this->union[$i])) {
+                $union = "({$this->union[$i]})";
+            } elseif (isset($this->unionAll[$i])) {
+                $union = "ALL ({$this->unionAll[$i]})";
+            } else {
+                trigger_error('Union offset mismatch', E_USER_ERROR);
+            }
+
+            $sql .= " UNION {$union}";
+        }
+
+        return $sql;
+    }
+
+
+    /**
+     * @param string ...$columns
      *
      * @return $this
      */
-    public function limit(?MySQL\Clause\Limit $limit = null)
+    public function groupBy(string ...$columns): self
     {
-        $this->limit = $limit;
+        $this->groupBy = array_merge($this->groupBy, $columns);
 
         return $this;
     }
@@ -95,11 +221,36 @@ class Select extends Ansi\Statement\Select
     /**
      * @return string
      */
-    protected function renderLimit(): string
+    protected function renderGroupBy(): string
     {
         $sql = '';
-        if ($this->limit != null) {
-            $sql = " {$this->limit}";
+        if (!empty($this->groupBy)) {
+            $sql = ' GROUP BY ' . implode(', ', $this->groupBy);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @param ?ConditionalInterface $clause
+     *
+     * @return $this
+     */
+    public function having(?ConditionalInterface $clause): self
+    {
+        $this->having = $clause;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderHaving(): string
+    {
+        $sql = '';
+        if ($this->having != null) {
+            $sql = " HAVING {$this->having}";
         }
 
         return $sql;
@@ -110,9 +261,31 @@ class Select extends Ansi\Statement\Select
      */
     public function getValues(): array
     {
-        $values = parent::getValues();
+        $values = [];
+        foreach ($this->join as $join) {
+            $values = array_merge($values, $join->getValues());
+        }
+
+        if ($this->where != null) {
+            $values = array_merge($values, $this->where->getValues());
+        }
+
+        if ($this->having != null) {
+            $values = array_merge($values, $this->having->getValues());
+        }
+
         if ($this->limit != null) {
             $values = array_merge($values, $this->limit->getValues());
+        }
+
+        for ($i = 0; $i < $this->getUnionCount(); $i++) {
+            if (isset($this->union[$i])) {
+                $values = array_merge($values, $this->union[$i]->getValues());
+            } elseif (isset($this->unionAll[$i])) {
+                $values = array_merge($values, $this->unionAll[$i]->getValues());
+            } else {
+                trigger_error('Union offset mismatch', E_USER_ERROR);
+            }
         }
 
         return $values;
@@ -123,7 +296,7 @@ class Select extends Ansi\Statement\Select
      */
     public function __toString(): string
     {
-        return 'SELECT'
+        $sql = 'SELECT'
             . $this->renderDistinct()
             . $this->renderColumns()
             . $this->renderFrom()
@@ -132,7 +305,12 @@ class Select extends Ansi\Statement\Select
             . $this->renderGroupBy()
             . $this->renderHaving()
             . $this->renderOrderBy()
-            . $this->renderLimit()
-            . $this->renderUnion();
+            . $this->renderLimit();
+
+        if ($this->getUnionCount() > 0) {
+            $sql = "({$sql})" . $this->renderUnion();
+        }
+
+        return $sql;
     }
 }

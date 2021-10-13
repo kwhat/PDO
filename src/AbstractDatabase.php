@@ -9,7 +9,7 @@ namespace FaaPz\PDO\QueryBuilder;
 
 use PDO;
 
-class AbstractDatabase extends PDO
+abstract class AbstractDatabase extends PDO implements DatabaseInterface
 {
     /**
      * @param string            $dsn

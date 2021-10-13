@@ -7,19 +7,17 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Clause;
 
-use FaaPz\PDO\QueryBuilder;
-
-class Limit implements QueryBuilder\QueryInterface
+class Limit implements LimitInterface
 {
     /** @var int $size */
-    protected $size;
+    protected int $size;
 
-    /** @var int|null $offset */
-    protected $offset;
+    /** @var ?int $offset */
+    protected ?int $offset;
 
     /**
-     * @param int      $size
-     * @param int|null $offset
+     * @param int  $size
+     * @param ?int $offset
      */
     public function __construct(int $size, ?int $offset = null)
     {
@@ -28,15 +26,14 @@ class Limit implements QueryBuilder\QueryInterface
     }
 
     /**
-     * @return int[]
+     * @return array<int>
      */
     public function getValues(): array
     {
-        $values = [];
+        $values = [$this->size];
         if ($this->offset !== null) {
             $values[] = $this->offset;
         }
-        $values[] = $this->size;
 
         return $values;
     }
@@ -48,7 +45,7 @@ class Limit implements QueryBuilder\QueryInterface
     {
         $sql = 'LIMIT ?';
         if ($this->offset !== null) {
-            $sql .= ', ?';
+            $sql .= ' OFFSET ?';
         }
 
         return $sql;

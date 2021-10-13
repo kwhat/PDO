@@ -7,34 +7,58 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
-use FaaPz\PDO\QueryBuilder\Ansi;
-use FaaPz\PDO\QueryBuilder\MySQL;
+use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
 
-/**
- * @phan-file-suppress PhanParamSignatureMismatch
- * @phan-file-suppress PhanParamSignaturePHPDocMismatchParamType, PhanParamSignaturePHPDocMismatchReturnType
- *
- * @property MySQL\Clause\Join[] $join
- * @property MySQL\Clause\Conditional|null $where
- *
- * @method self join(MySQL\Clause\Join $clause)
- * @method self where(MySQL\Clause\Conditional $clause)
- */
-class Delete extends Ansi\Statement\Delete
+class Delete extends AbstractStatement
 {
-    /** @var MySQL\Clause\Limit|null $limit */
-    protected $limit = null;
+    /** @var string|array<string, string>|null $table */
+    protected $table = null;
+
 
     /**
-     * @param MySQL\Clause\Limit|null $limit
-     *
-     * @return $this
+     * @param Database                       $dbh
+     * @param ?string|?array<string, string> $table
      */
-    public function limit(?MySQL\Clause\Limit $limit)
+    public function __construct(Database $dbh, $table = null)
     {
-        $this->limit = $limit;
+        parent::__construct($dbh);
+
+        $this->from($table);
+    }
+
+    /**
+     * @param ?string|?array<string, string> $table
+     *
+     * @return self
+     */
+    public function from($table): self
+    {
+        $this->table = $table;
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderFrom(): string
+    {
+        if (empty($this->table)) {
+            trigger_error('No table set for delete statement', E_USER_ERROR);
+        }
+
+        if (is_array($this->table)) {
+            $table = reset($this->table);
+            $alias = key($this->table);
+            if (is_string($alias)) {
+                $table .= " AS {$alias}";
+            }
+        } else {
+            $table = $this->table;
+        }
+
+        return " FROM {$table}";
     }
 
     /**
@@ -42,7 +66,19 @@ class Delete extends Ansi\Statement\Delete
      */
     public function getValues(): array
     {
-        $values = parent::getValues();
+        $values = [];
+        foreach ($this->join as $join) {
+            $values = array_merge($values, $join->getValues());
+        }
+
+        if ($this->where != null) {
+            $values = array_merge($values, $this->where->getValues());
+        }
+
+        if (!empty($this->orderBy)) {
+            $values = array_merge($values, $this->orderBy);
+        }
+
         if ($this->limit != null) {
             $values = array_merge($values, $this->limit->getValues());
         }
@@ -55,11 +91,11 @@ class Delete extends Ansi\Statement\Delete
      */
     public function __toString(): string
     {
-        $sql = parent::__toString();
-        if ($this->limit != null) {
-            $sql .= " {$this->limit}";
-        }
-
-        return $sql;
+        return 'DELETE'
+            . $this->renderFrom()
+            . $this->renderJoin()
+            . $this->renderWhere()
+            . $this->renderOrderBy()
+            . $this->renderLimit();
     }
 }

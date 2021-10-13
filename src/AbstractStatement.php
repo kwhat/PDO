@@ -14,7 +14,8 @@ use PDOStatement;
 abstract class AbstractStatement implements QueryInterface
 {
     /** @var PDO $dbh */
-    protected $dbh;
+    protected PDO $dbh;
+
 
     /**
      * @param PDO $dbh
@@ -27,10 +28,11 @@ abstract class AbstractStatement implements QueryInterface
     /**
      * @throws PDOException
      *
-     * @return mixed
+     * @return PDOStatement
      */
     public function execute(): PDOStatement
     {
+        // FIXME What happens if this returns false?
         $stmt = $this->dbh->prepare($this->__toString());
         $stmt->execute($this->getValues());
 
