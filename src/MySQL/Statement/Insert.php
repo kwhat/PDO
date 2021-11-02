@@ -7,37 +7,80 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\RawInterface;
+use FaaPz\PDO\QueryBuilder\MySQL\Database;
 use FaaPz\PDO\QueryBuilder\AbstractStatement;
 use FaaPz\PDO\QueryBuilder\QueryInterface;
-use FaaPz\PDO\QueryBuilder\MySQL\Database;
-use FaaPz\PDO\QueryBuilder\MySQL\Clause\Raw;
 
-class Insert extends AbstractStatement
+class Insert extends AbstractStatement implements InsertInterface
 {
-    /** @var ?string $table */
-    protected ?string $table;
-
-    /** @var array<string> $columns */
-    protected array $columns = [];
-
-    /** @var array<mixed> $values */
-    protected array $values = [];
+    /** @var string|null */
+    protected ?string $priority = null;
 
     /** @var bool $ignore */
     protected bool $ignore = false;
 
+    /** @var ?string $table */
+    protected ?string $table = null;
+
+    /** @var array<string> $columns */
+    protected array $columns = [];
+
+    /** @var array<array<float|int|string|RawInterface>>|SelectInterface $values */
+    protected array $values = [];
+
     /** @var array<string, mixed> $update */
     protected array $update = [];
 
+
     /**
-     * @param Database             $dbh
-     * @param array<string, mixed> $pairs
+     * @param Database           $dbh
+     * @param array<int, string> $columns
      */
-    public function __construct(Database $dbh, array $pairs = [])
+    public function __construct(Database $dbh, array $columns = [])
     {
         parent::__construct($dbh);
 
-        $this->pairs($pairs);
+        $this->columns(...$columns);
+    }
+
+    /**
+     * @param string $level
+     *
+     * @return self
+     */
+    public function priority(string $level): self
+    {
+        $this->priority = strtoupper(trim($level));
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderPriority(): string
+    {
+        $sql = '';
+        if ($this->priority != null) {
+            switch ($this->priority) {
+                case 'LOW':
+                case 'HIGH':
+                    $sql = " {$this->priority}_PRIORITY";
+                    break;
+
+                case 'LOW_PRIORITY':
+                case 'DELAYED':
+                case 'HIGH_PRIORITY':
+                    $sql = " {$this->priority}";
+                    break;
+
+                default:
+                    trigger_error('Invalid priority type', E_USER_ERROR);
+            }
+        }
+
+        return $sql;
     }
 
     /**
@@ -69,7 +112,7 @@ class Insert extends AbstractStatement
      *
      * @return self
      */
-    public function into(?string $table): self
+    public function into(string $table): self
     {
         $this->table = $table;
 
@@ -89,22 +132,9 @@ class Insert extends AbstractStatement
     }
 
     /**
-     * @param array<string, mixed> $pairs
-     *
-     * @return $this
-     */
-    public function pairs(array $pairs): self
-    {
-        $this->columns(...array_keys($pairs));
-        $this->values(...array_values($pairs));
-
-        return $this;
-    }
-
-    /**
      * @param string ...$columns
      *
-     * @return $this
+     * @return self
      */
     public function columns(string ...$columns): self
     {
@@ -127,13 +157,15 @@ class Insert extends AbstractStatement
     }
 
     /**
-     * @param mixed ...$values
+     * @param float|int|string|RawInterface|SelectInterface $value
+     * @param float|int|string|RawInterface                 ...$values
      *
-     * @return $this
+     * @return self
      */
-    public function values(...$values): self
+    public function values($value, ...$values): self
     {
-        $this->values = $values;
+        array_unshift($values, $value);
+        $this->values[] = $values;
 
         return $this;
     }
@@ -143,65 +175,64 @@ class Insert extends AbstractStatement
      */
     protected function renderValues(): string
     {
-        $size = count($this->values);
-        if ($size < 1) {
+        $length = count($this->values);
+        if ($length < 1) {
             trigger_error('No values set for insert statement', E_USER_ERROR);
         }
 
-        if (count($this->columns) > 0 && count($this->columns) != count($this->values)) {
-            trigger_error('No values set for insert statement', E_USER_ERROR);
-        }
-
-        if ($this->values[0] instanceof Select) {
-            if (count($this->values) > 1) {
+        $sql = '';
+        if ($this->values[0][0] instanceof SelectInterface) {
+            if ($length > 1 || count($this->values[0]) > 1) {
                 trigger_error('Ignoring additional values after select for insert statement', E_USER_WARNING);
+                $this->values = array_slice($this->values, 0, 1);
             }
 
-            $placeholders = " {$this->values[0]}";
-        } elseif (is_array($this->values[0])) {
-            // FIXME this plug to use a loop instead of str_rep.
-            $plug = substr(str_repeat('?, ', count($this->values[0])), 0, -2);
-            $placeholders = " VALUES ({$plug})";
-
-            for ($i = 1; $i < $size; $i++) {
-                if (!is_array($this->values[$i])) {
-                    trigger_error('Invalid nested value for insert statement', E_USER_ERROR);
-                }
-
-                if (count($this->values[0]) != count($this->values[$i])) {
-                    trigger_error('Invalid nested value count for insert statement', E_USER_ERROR);
-                }
-
-                $plug = substr(str_repeat('?, ', count($this->values[$i])), 0, -2);
-                $placeholders .= ", ({$plug})";
-            }
+            $sql .= " {$this->values[0][0]}";
         } else {
-            if ($this->values[0] instanceof Raw) {
-                $plug = "{$this->values[0]}";
-            } elseif (is_scalar($this->values[0]) || $this->values[0] === null) {
-                $plug = '?';
-            } else {
-                trigger_error('Invalid value for insert statement', E_USER_ERROR);
+            $width = count($this->values[0]);
+            if (count($this->columns) > 0 && $width != count($this->columns)) {
+                trigger_error('Column value count mismatch for insert statement', E_USER_ERROR);
             }
 
-            for ($i = 1; $i < $size; $i++) {
-                if ($this->values[$i] instanceof Raw) {
-                    $plug .= ", {$this->values[$i]}";
-                } elseif (is_scalar($this->values[$i]) || $this->values[$i] === null) {
-                    $plug .= ', ?';
-                } else {
-                    trigger_error('Invalid value for insert statement', E_USER_ERROR);
+            $sql .= ' VALUES ';
+            for ($y = 0; $y < $length; $y++) {
+                if ($y > 0) {
+                    if ($width != count($this->values[$y])) {
+                        trigger_error('Invalid nested value count for insert statement', E_USER_ERROR);
+                    }
+
+                    $sql .= ', ';
+                }
+
+                $row = '';
+                for ($x = 0; $x < $width; $x++) {
+                    if ($x > 0) {
+                        $row .= ', ';
+                    }
+
+                    if (
+                        $this->values[$y][$x] === null
+                        || (is_scalar($this->values[$y][$x]) && !is_bool($this->values[$y][$x]))
+                    ) {
+                        $row .= '?';
+                    } elseif ($this->values[$y][$x] instanceof RawInterface) {
+                        $row .= $this->values[$y][$x];
+                    } else {
+                        trigger_error('Invalid value for insert statement', E_USER_ERROR);
+                    }
+                }
+
+                if (!empty($row)) {
+                    $sql .= "({$row})";
                 }
             }
-
-            $placeholders = " VALUES ({$plug})";
         }
 
-        return $placeholders;
+        return $sql;
     }
 
     /**
-     * @param array<string, mixed> $paris
+     * @param array<string, float|int|string|RawInterface> $paris
      *
      * @return self
      */
@@ -221,7 +252,11 @@ class Insert extends AbstractStatement
         if (!empty($this->update)) {
             $sql = ' ON DUPLICATE KEY UPDATE';
             foreach ($this->update as $column => $value) {
-                if (!$value instanceof QueryInterface) {
+                if (!$value instanceof RawInterface) {
+                    if ($value !== null && (!is_scalar($value) || is_bool($value))) {
+                        trigger_error('Invalid value for insert on duplicate value', E_USER_ERROR);
+                    }
+
                     $value = '?';
                 }
 
@@ -239,11 +274,17 @@ class Insert extends AbstractStatement
     public function getValues(): array
     {
         $values = [];
-        foreach ($this->values as $value) {
-            if ($value instanceof QueryInterface) {
-                $values = array_merge($values, $value->getValues());
+        foreach ($this->values as $row) {
+            if ($row instanceof SelectInterface) {
+                $values = array_merge($values, $row->getValues());
             } else {
-                $values[] = $value;
+                foreach ($row as $value) {
+                    if ($value instanceof QueryInterface) {
+                        $values = array_merge($values, $value->getValues());
+                    } else {
+                        $values[] = $value;
+                    }
+                }
             }
         }
 
@@ -264,6 +305,7 @@ class Insert extends AbstractStatement
     public function __toString(): string
     {
         return 'INSERT'
+            . $this->renderPriority()
             . $this->renderIgnore()
             . $this->renderInto()
             . $this->renderColumns()

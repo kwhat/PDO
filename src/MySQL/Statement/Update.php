@@ -11,7 +11,7 @@ use FaaPz\PDO\QueryBuilder\QueryInterface;
 use FaaPz\PDO\QueryBuilder\MySQL\Database;
 use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
 
-class Update extends AbstractStatement
+class Update extends AbstractStatement implements UpdateInterface
 {
     /** @var string $table */
     protected string $table;

@@ -11,11 +11,10 @@ use FaaPz\PDO\QueryBuilder;
 use FaaPz\PDO\QueryBuilder\PostgreSQL\AbstractStatement;
 use FaaPz\PDO\QueryBuilder\PostgreSQL\Database;
 use FaaPz\PDO\QueryBuilder\PostgreSQL\Clause\Conditional;
-use FaaPz\PDO\QueryBuilder\PostgreSQL\Clause\Limit;
 
 class Select extends AbstractStatement
 {
-    /** @var ?string|?array<string, string|Select> $table */
+    /** @var ?string|?array<string, string|self> $table */
     protected $table = null;
 
     /** @var array<int|string, string> $columns */

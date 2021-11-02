@@ -13,6 +13,7 @@ use FaaPz\PDO\QueryBuilder\MySQL\Clause\Join;
 use FaaPz\PDO\QueryBuilder\MySQL\Clause\Limit;
 use FaaPz\PDO\QueryBuilder\MySQL\Statement\Select;
 use PHPUnit\Framework\TestCase;
+use ReflectionObject;
 
 class SelectTest extends TestCase
 {
@@ -63,6 +64,25 @@ class SelectTest extends TestCase
             ->from('test1');
 
         $this->assertStringEndsWith('(SELECT * FROM test2) AS sub FROM test1', $this->subject->__toString());
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithEmptyColumns(): void
+    {
+        $this->subject
+            ->from('test');
+
+        $reflection = new ReflectionObject($this->subject);
+        $property = $reflection->getProperty('columns');
+        $property->setAccessible(true);
+        $property->setValue($this->subject, []);
+
+        $this->expectError();
+        $this->expectErrorMessageMatches('/^No columns set/');
+
+        $this->subject->__toString();
     }
 
     /**
@@ -243,6 +263,104 @@ class SelectTest extends TestCase
     /**
      * @return void
      */
+    public function testToStringWithUnion(): void
+    {
+        $this->subject
+            ->columns(['id', 'name'])
+            ->from('test1')
+            ->union(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test2')
+            );
+
+        $this->assertStringMatchesFormat(
+            '(SELECT id, name FROM test1) UNION (SELECT id, name FROM test2)',
+            $this->subject->__toString()
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithUnionAll(): void
+    {
+        $this->subject
+            ->columns(['id', 'name'])
+            ->from('test1')
+            ->unionAll(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test2')
+            );
+
+        $this->assertStringMatchesFormat(
+            '(SELECT id, name FROM test1) UNION ALL (SELECT id, name FROM test2)',
+            $this->subject->__toString()
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithUnionAndUnionAll(): void
+    {
+        $this->subject
+            ->columns(['id', 'name'])
+            ->from('test1')
+            ->union(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test2')
+            )
+            ->unionAll(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test3')
+            );
+
+        $this->assertStringMatchesFormat(
+            '(SELECT id, name FROM test1) UNION (SELECT id, name FROM test2) UNION ALL (SELECT id, name FROM test3)',
+            $this->subject->__toString()
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testToStringWithUnionMismatch(): void
+    {
+        $this->subject
+            ->columns(['id', 'name'])
+            ->from('test1')
+            ->where(new Conditional('id', '<>', 1))
+            ->union(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test2')
+                    ->where(new Conditional('id', '<>', 2))
+            )
+            ->unionAll(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test3')
+                    ->where(new Conditional('id', '<>', 3))
+            );
+
+        $reflection = new ReflectionObject($this->subject);
+        $property = $reflection->getProperty('unionAll');
+        $property->setAccessible(true);
+        $property->setValue($this->subject, array_values($property->getValue($this->subject)));
+
+        $this->expectError();
+        $this->expectErrorMessageMatches('/^Union offset mismatch/');
+
+        $this->subject->__toString();
+    }
+
+    /**
+     * @return void
+     */
     public function testToStringWithoutTable(): void
     {
         $this->expectError();
@@ -297,16 +415,16 @@ class SelectTest extends TestCase
         $this->subject
             ->columns(['id', 'name'])
             ->from('test1')
+            ->where(new Conditional('id', '<>', 1))
             ->union(
                 (new Select($this->createMock(Database::class)))
                     ->columns(['id', 'name'])
                     ->from('test2')
+                    ->where(new Conditional('id', '<>', 2))
             );
 
-        $this->assertStringMatchesFormat(
-            '(SELECT id, name FROM test1) UNION (SELECT id, name FROM test2)',
-            $this->subject->__toString()
-        );
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(2, $this->subject->getValues());
     }
 
     /**
@@ -317,16 +435,16 @@ class SelectTest extends TestCase
         $this->subject
             ->columns(['id', 'name'])
             ->from('test1')
+            ->where(new Conditional('id', '<>', 1))
             ->unionAll(
                 (new Select($this->createMock(Database::class)))
                     ->columns(['id', 'name'])
                     ->from('test2')
+                    ->where(new Conditional('id', '<>', 2))
             );
 
-        $this->assertStringMatchesFormat(
-            '(SELECT id, name FROM test1) UNION ALL (SELECT id, name FROM test2)',
-            $this->subject->__toString()
-        );
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(2, $this->subject->getValues());
     }
 
     /**
@@ -337,21 +455,55 @@ class SelectTest extends TestCase
         $this->subject
             ->columns(['id', 'name'])
             ->from('test1')
+            ->where(new Conditional('id', '<>', 1))
             ->union(
                 (new Select($this->createMock(Database::class)))
                     ->columns(['id', 'name'])
                     ->from('test2')
+                    ->where(new Conditional('id', '<>', 2))
             )
             ->unionAll(
                 (new Select($this->createMock(Database::class)))
                     ->columns(['id', 'name'])
                     ->from('test3')
+                    ->where(new Conditional('id', '<>', 3))
             );
 
-        $this->assertStringMatchesFormat(
-            '(SELECT id, name FROM test1) UNION (SELECT id, name FROM test2) UNION ALL (SELECT id, name FROM test3)',
-            $this->subject->__toString()
-        );
+        $this->assertIsArray($this->subject->getValues());
+        $this->assertCount(3, $this->subject->getValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testGetValuesWithUnionMismatch(): void
+    {
+        $this->subject
+            ->columns(['id', 'name'])
+            ->from('test1')
+            ->where(new Conditional('id', '<>', 1))
+            ->union(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test2')
+                    ->where(new Conditional('id', '<>', 2))
+            )
+            ->unionAll(
+                (new Select($this->createMock(Database::class)))
+                    ->columns(['id', 'name'])
+                    ->from('test3')
+                    ->where(new Conditional('id', '<>', 3))
+            );
+
+        $reflection = new ReflectionObject($this->subject);
+        $property = $reflection->getProperty('unionAll');
+        $property->setAccessible(true);
+        $property->setValue($this->subject, array_values($property->getValue($this->subject)));
+
+        $this->expectError();
+        $this->expectErrorMessageMatches('/^Union offset mismatch/');
+
+        $this->subject->getValues();
     }
 
     /**

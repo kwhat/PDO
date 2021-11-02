@@ -7,11 +7,12 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Clause;
 
-use FaaPz\PDO\QueryBuilder\MySQL\Statement\Select;
+use FaaPz\PDO\QueryBuilder\MySQL\Statement\CallInterface;
+use FaaPz\PDO\QueryBuilder\MySQL\Statement\SelectInterface;
 
 class Join implements JoinInterface
 {
-    /** @var string|array<string,string|Select> $subject */
+    /** @var string|array<string,string|CallInterface|SelectInterface> $subject */
     protected $subject;
 
     /** @var ConditionalInterface $on */
@@ -22,11 +23,11 @@ class Join implements JoinInterface
 
 
     /**
-     * @param string|array<string,string|Select> $subject
-     * @param ConditionalInterface               $on
-     * @param string                             $type
+     * @param string|array<string,string|CallInterface|SelectInterface> $subject
+     * @param ConditionalInterface                                      $on
+     * @param ?string                                                   $type
      */
-    public function __construct($subject, ConditionalInterface $on, string $type = '')
+    public function __construct($subject, ConditionalInterface $on, ?string $type = null)
     {
         $this->subject = $subject;
         $this->on = $on;
@@ -55,7 +56,7 @@ class Join implements JoinInterface
             }
 
             $table = $this->subject[$alias];
-            if ($table instanceof Select) {
+            if ($table instanceof CallInterface || $table instanceof SelectInterface) {
                 $table = "({$table})";
             }
             $table .= " AS {$alias}";

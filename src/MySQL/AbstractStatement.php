@@ -12,7 +12,7 @@ use FaaPz\PDO\QueryBuilder\MySQL\Clause\ConditionalInterface;
 use FaaPz\PDO\QueryBuilder\MySQL\Clause\JoinInterface;
 use FaaPz\PDO\QueryBuilder\MySQL\Clause\LimitInterface;
 
-abstract class AbstractStatement extends QueryBuilder\AbstractStatement
+abstract class AbstractStatement extends QueryBuilder\AbstractStatement implements StatementInterface
 {
     /** @var array<JoinInterface> $join */
     protected array $join = [];
@@ -110,11 +110,11 @@ abstract class AbstractStatement extends QueryBuilder\AbstractStatement
     }
 
     /**
-     * @param ?LimitInterface $limit
+     * @param LimitInterface $limit
      *
      * @return self
      */
-    public function limit(?LimitInterface $limit): self
+    public function limit(LimitInterface $limit): self
     {
         $this->limit = $limit;
 

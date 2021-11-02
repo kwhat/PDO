@@ -13,8 +13,8 @@ abstract class AbstractDatabase extends PDO implements DatabaseInterface
 {
     /**
      * @param string            $dsn
-     * @param string|null       $username
-     * @param string|null       $password
+     * @param ?string           $username
+     * @param ?string           $password
      * @param array<int, mixed> $options
      *
      * @codeCoverageIgnore
@@ -25,9 +25,9 @@ abstract class AbstractDatabase extends PDO implements DatabaseInterface
     }
 
     /**
-     * @codeCoverageIgnore
-     *
      * @return array<int, mixed>
+     *
+     * @codeCoverageIgnore
      */
     protected function getDefaultOptions(): array
     {

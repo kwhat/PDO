@@ -77,7 +77,7 @@ class InsertTest extends TestCase
             ->values(1, 2);
 
         $this->expectError();
-        $this->expectErrorMessageMatches('/^No values set for insert statement/');
+        $this->expectErrorMessageMatches('/^Column value count mismatch for insert statement/');
 
         $this->subject->__toString();
     }

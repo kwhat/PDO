@@ -11,7 +11,7 @@ use PDO;
 use PDOException;
 use PDOStatement;
 
-abstract class AbstractStatement implements QueryInterface
+abstract class AbstractStatement implements StatementInterface
 {
     /** @var PDO $dbh */
     protected PDO $dbh;
@@ -28,13 +28,14 @@ abstract class AbstractStatement implements QueryInterface
     /**
      * @throws PDOException
      *
-     * @return PDOStatement
+     * @return PDOStatement|false
      */
-    public function execute(): PDOStatement
+    public function execute()
     {
-        // FIXME What happens if this returns false?
         $stmt = $this->dbh->prepare($this->__toString());
-        $stmt->execute($this->getValues());
+        if ($stmt !== false) {
+            $stmt->execute($this->getValues());
+        }
 
         return $stmt;
     }

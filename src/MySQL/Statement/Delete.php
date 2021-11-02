@@ -10,9 +10,9 @@ namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
 use FaaPz\PDO\QueryBuilder\MySQL\Database;
 
-class Delete extends AbstractStatement
+class Delete extends AbstractStatement implements DeleteInterface
 {
-    /** @var string|array<string, string>|null $table */
+    /** @var ?string|?array<string, string> $table */
     protected $table = null;
 
 
@@ -24,11 +24,13 @@ class Delete extends AbstractStatement
     {
         parent::__construct($dbh);
 
-        $this->from($table);
+        if ($table != null) {
+            $this->from($table);
+        }
     }
 
     /**
-     * @param ?string|?array<string, string> $table
+     * @param string|array<string, string> $table
      *
      * @return self
      */

@@ -9,30 +9,33 @@ namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
 use FaaPz\PDO\QueryBuilder\AbstractStatement;
 use FaaPz\PDO\QueryBuilder\MySQL\Database;
-use FaaPz\PDO\QueryBuilder\MySQL\Clause\Method;
+use FaaPz\PDO\QueryBuilder\MySQL\Clause\MethodInterface;
 
-class Call extends AbstractStatement
+class Call extends AbstractStatement implements CallInterface
 {
-    /** @var ?Method $method */
-    protected ?Method $method = null;
+    /** @var ?MethodInterface $method */
+    protected ?MethodInterface $method = null;
+
 
     /**
-     * @param Database $dbh
-     * @param ?Method  $procedure
+     * @param Database         $dbh
+     * @param ?MethodInterface $procedure
      */
-    public function __construct(Database $dbh, ?Method $procedure = null)
+    public function __construct(Database $dbh, ?MethodInterface $procedure = null)
     {
         parent::__construct($dbh);
 
-        $this->method($procedure);
+        if ($procedure != null) {
+            $this->method($procedure);
+        }
     }
 
     /**
-     * @param ?Method $procedure
+     * @param MethodInterface $procedure
      *
      * @return self
      */
-    public function method(?Method $procedure): self
+    public function method(MethodInterface $procedure): self
     {
         $this->method = $procedure;
 

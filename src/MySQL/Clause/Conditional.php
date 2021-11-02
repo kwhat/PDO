@@ -17,13 +17,13 @@ class Conditional implements ConditionalInterface
     /** @var string $operator */
     protected string $operator;
 
-    /** @var mixed $value */
+    /** @var float|int|string|MethodInterface|RawInterface $value */
     protected $value;
 
     /**
-     * @param string $column
-     * @param string $operator
-     * @param mixed  $value
+     * @param string                                        $column
+     * @param string                                        $operator
+     * @param float|int|string|MethodInterface|RawInterface $value
      */
     public function __construct(string $column, string $operator, $value)
     {
@@ -59,7 +59,7 @@ class Conditional implements ConditionalInterface
      *
      * @return string
      */
-    protected function getPlaceholder($value): string
+    protected function renderPlaceholder($value): string
     {
         $placeholder = '?';
         if ($value instanceof QueryInterface) {
@@ -85,7 +85,7 @@ class Conditional implements ConditionalInterface
                     );
                 }
 
-                $sql .= "({$this->getPlaceholder($this->value[0])} AND {$this->getPlaceholder($this->value[1])})";
+                $sql .= "({$this->renderPlaceholder($this->value[0])} AND {$this->renderPlaceholder($this->value[1])})";
                 break;
 
             case 'IN':
@@ -103,13 +103,13 @@ class Conditional implements ConditionalInterface
                         $placeholders .= ', ';
                     }
 
-                    $placeholders .= $this->getPlaceholder($value);
+                    $placeholders .= $this->renderPlaceholder($value);
                 }
                 $sql .= "({$placeholders})";
                 break;
 
             default:
-                $sql .= $this->getPlaceholder($this->value);
+                $sql .= $this->renderPlaceholder($this->value);
         }
 
         return $sql;

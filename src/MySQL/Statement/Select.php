@@ -12,21 +12,21 @@ use FaaPz\PDO\QueryBuilder\MySQL\AbstractStatement;
 use FaaPz\PDO\QueryBuilder\MySQL\Database;
 use FaaPz\PDO\QueryBuilder\MySQL\Clause\ConditionalInterface;
 
-class Select extends AbstractStatement
+class Select extends AbstractStatement implements SelectInterface
 {
-    /** @var ?string|?array<string, string|self> $table */
-    protected $table = null;
-
     /** @var bool $distinct */
     protected bool $distinct = false;
 
-    /** @var array<int|string, string|self> $columns */
+    /** @var array<int|string, string|CallInterface|SelectInterface> $columns */
     protected $columns = [];
 
-    /** @var array<int, self> $union */
+    /** @var ?string|?array<string, string|CallInterface|SelectInterface> $table */
+    protected $table = null;
+
+    /** @var array<int, CallInterface|SelectInterface> $union */
     protected array $union = [];
 
-    /** @var array<int, self> $unionAll */
+    /** @var array<int, CallInterface|SelectInterface> $unionAll */
     protected array $unionAll = [];
 
     /** @var array<int, string> $groupBy */
@@ -48,7 +48,7 @@ class Select extends AbstractStatement
     }
 
     /**
-     * @return $this
+     * @return self
      */
     public function distinct(): self
     {
@@ -71,9 +71,9 @@ class Select extends AbstractStatement
     }
 
     /**
-     * @param array<int|string, string|self> $columns
+     * @param array<int|string, string|CallInterface|SelectInterface> $columns
      *
-     * @return $this
+     * @return self
      */
     public function columns(array $columns = ['*']): self
     {
@@ -91,33 +91,34 @@ class Select extends AbstractStatement
      */
     protected function renderColumns(): string
     {
-        // FIXME Rewrite as a while loop, raise error if columns is empty.
+        if (empty($this->columns)) {
+            trigger_error('No columns set for select statement', E_USER_ERROR);
+        }
+
         $columns = '';
-        foreach ($this->columns as $key => $value) {
+        foreach ($this->columns as $alias => $column) {
             if (!empty($columns)) {
                 $columns .= ', ';
             }
 
-            if ($value instanceof QueryInterface) {
-                $column = "({$value})";
+            if ($column instanceof QueryInterface) {
+                $columns .= "({$column})";
             } else {
-                $column = $value;
+                $columns .= $column;
             }
 
-            if (is_string($key)) {
-                $column .= " AS {$key}";
+            if (is_string($alias)) {
+                $columns .= " AS {$alias}";
             }
-
-            $columns .= $column;
         }
 
         return " {$columns}";
     }
 
     /**
-     * @param string|array<string, string|self> $table
+     * @param string|array<string, string|CallInterface|SelectInterface> $table
      *
-     * @return $this
+     * @return self
      */
     public function from($table): self
     {
@@ -153,11 +154,11 @@ class Select extends AbstractStatement
     }
 
     /**
-     * @param self $query
+     * @param SelectInterface $query
      *
-     * @return $this
+     * @return self
      */
-    public function union(self $query): self
+    public function union(SelectInterface $query): self
     {
         $this->union[$this->getUnionCount()] = $query;
 
@@ -165,11 +166,11 @@ class Select extends AbstractStatement
     }
 
     /**
-     * @param self $query
+     * @param SelectInterface $query
      *
-     * @return $this
+     * @return self
      */
-    public function unionAll(self $query): self
+    public function unionAll(SelectInterface $query): self
     {
         $this->unionAll[$this->getUnionCount()] = $query;
 
@@ -209,7 +210,7 @@ class Select extends AbstractStatement
     /**
      * @param string ...$columns
      *
-     * @return $this
+     * @return self
      */
     public function groupBy(string ...$columns): self
     {
@@ -232,11 +233,11 @@ class Select extends AbstractStatement
     }
 
     /**
-     * @param ?ConditionalInterface $clause
+     * @param ConditionalInterface $clause
      *
-     * @return $this
+     * @return self
      */
-    public function having(?ConditionalInterface $clause): self
+    public function having(ConditionalInterface $clause): self
     {
         $this->having = $clause;
 
