@@ -18,14 +18,14 @@ interface SelectInterface extends StatementInterface
     public function distinct(): self;
 
     /**
-     * @param array<int|string, string|CallInterface|SelectInterface> $columns
+     * @param array<int|string, string|SelectInterface> $columns
      *
      * @return self
      */
     public function columns(array $columns = ['*']): self;
 
     /**
-     * @param string|array<string, string|CallInterface|SelectInterface> $table
+     * @param string|array<string, string|SelectInterface> $table
      *
      * @return self
      */

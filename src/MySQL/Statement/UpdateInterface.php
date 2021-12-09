@@ -7,7 +7,6 @@
 
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
-use FaaPz\PDO\QueryBuilder\MySQL\Clause\MethodInterface;
 use FaaPz\PDO\QueryBuilder\QueryInterface;
 
 interface UpdateInterface extends QueryInterface
@@ -23,14 +22,14 @@ interface UpdateInterface extends QueryInterface
      * @param string $column
      * @param mixed  $value
      *
-     * @return $this
+     * @return self
      */
     public function set(string $column, $value): self;
 
     /**
      * @param array<string, mixed> $pairs
      *
-     * @return $this
+     * @return self
      */
     public function pairs(array $pairs): self;
 }

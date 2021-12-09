@@ -8,9 +8,9 @@
 namespace FaaPz\PDO\QueryBuilder\MySQL\Statement;
 
 use FaaPz\PDO\QueryBuilder\MySQL\Clause\MethodInterface;
-use FaaPz\PDO\QueryBuilder\QueryInterface;
+use FaaPz\PDO\QueryBuilder\StatementInterface;
 
-interface CallInterface extends QueryInterface
+interface CallInterface extends StatementInterface
 {
     /**
      * @param MethodInterface $procedure

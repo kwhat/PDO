@@ -17,13 +17,13 @@ class Conditional implements ConditionalInterface
     /** @var string $operator */
     protected string $operator;
 
-    /** @var float|int|string|MethodInterface|RawInterface $value */
+    /** @var float|int|string|array<float|int|string>|MethodInterface|RawInterface $value */
     protected $value;
 
     /**
-     * @param string                                        $column
-     * @param string                                        $operator
-     * @param float|int|string|MethodInterface|RawInterface $value
+     * @param string                                                                $column
+     * @param string                                                                $operator
+     * @param float|int|string|array<float|int|string>|MethodInterface|RawInterface $value
      */
     public function __construct(string $column, string $operator, $value)
     {
